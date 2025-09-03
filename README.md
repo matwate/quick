@@ -59,6 +59,39 @@ quick create 2 solution
 ```
 This will create `1solution.in`, `1solution.out`, `2solution.in`, `2solution.out`. These files will be automatically picked up when you run `quick run --strict solution.py`.
 
+## Configuration
+
+You can configure the shell and the run command used by `quick` to execute your scripts.
+
+### Setting Configuration Values
+
+To set a configuration value, use the `config set` command.
+
+```bash
+quick config set <key> <value>
+```
+
+For example, to change the shell to `zsh`:
+
+```bash
+quick config set shell zsh
+```
+
+### Windows Configuration
+
+For Windows, you need to configure the shell to `cmd.exe` (or `powershell.exe`) and the run command to `python`.
+
+```bash
+quick config set shell cmd.exe
+quick config set run_command python
+```
+
+You can also use `powershell.exe` as your shell:
+
+```bash
+quick config set shell powershell.exe
+```
+
 ## Potential Upgrades
 
 This tool provides a solid foundation, but there are many ways it could be extended. Here are a few ideas for future development:

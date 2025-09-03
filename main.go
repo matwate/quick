@@ -11,20 +11,21 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/pmezard/go-difflib/difflib"
 	"github.com/urfave/cli/v3"
+
+	"github.com/matwate/quick/config"
+	renderer "github.com/matwate/quick/renderer"
 )
 
 const (
-
 	// Emojis
 	EmojiPassed  = "✅"
 	EmojiFailed  = "❌"
 	EmojiTimeout = "⌛"
 )
 
-func run(c *cli.Command) {
+func run(c *cli.Command, cfg *config.Config) {
 	pyFilename := c.Args().Get(0)
 	strict := c.Bool("strict")
 
@@ -38,7 +39,7 @@ func run(c *cli.Command) {
 			log.Fatal(err)
 		}
 
-		fmt.Println("Found matching input files (strict mode):")
+		renderer.Render("Found matching input files (strict mode):")
 		for _, file := range inputs {
 			if !file.IsDir() && strings.Contains(file.Name(), baseFilename) &&
 				strings.HasSuffix(file.Name(), ".in") {
@@ -47,7 +48,7 @@ func run(c *cli.Command) {
 
 				// Check if the corresponding .out file exists
 				if _, err := os.Stat(outFilename); err == nil {
-					fmt.Println(" -", inFilename)
+					renderer.Render(fmt.Sprintf(" - %s", inFilename))
 					Ins_Outs[inFilename] = outFilename
 				}
 			}
@@ -59,17 +60,17 @@ func run(c *cli.Command) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println("Found input files:")
+		renderer.Render("Found input files:")
 		for _, file := range inputs {
 			if !file.IsDir() && len(file.Name()) > 3 && file.Name()[len(file.Name())-3:] == ".in" {
-				fmt.Println(" -", file.Name())
+				renderer.Render(fmt.Sprintf(" - %s", file.Name()))
 				ins = append(ins, file.Name())
 			}
 		}
-		fmt.Println("Found output files:")
+		renderer.Render("Found output files:")
 		for _, file := range inputs {
 			if !file.IsDir() && len(file.Name()) > 4 && file.Name()[len(file.Name())-4:] == ".out" {
-				fmt.Println(" -", file.Name())
+				renderer.Render(fmt.Sprintf(" - %s", file.Name()))
 				outs = append(outs, file.Name())
 			}
 		}
@@ -86,12 +87,18 @@ func run(c *cli.Command) {
 			}
 		}
 	}
-	// Run a python subprocess with the input specified in the *.in file and capture the output
+
+	if len(Ins_Outs) == 0 {
+		renderer.RenderYellow("No test cases found.")
+		return
+	}
 
 	passed := true
 	failed := []string{}
 	for in, out := range Ins_Outs {
-		fmt.Printf("Running test case: %s -> %s\n ", in, out)
+		renderer.Render(
+			fmt.Sprintf("Running test case: %s -> %s\n ", in, out),
+		) // Note: Added a space after \n to match original formatting
 
 		// Read input from the *.in file
 		inputData, err := os.ReadFile(in)
@@ -100,13 +107,13 @@ func run(c *cli.Command) {
 		}
 
 		// Execute the Python script with the input inputData
-		cmd := fmt.Sprintf("python3 %s", pyFilename)
+		cmd := fmt.Sprintf("%s %s", cfg.RunCommand, pyFilename)
 
 		// Create a context with a timeout
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		command := exec.CommandContext(ctx, "zsh", "-c", cmd)
+		command := exec.CommandContext(ctx, cfg.Shell, "-c", cmd)
 		command.Stdin = bytes.NewReader(inputData)
 
 		var outBuffer, errBuffer bytes.Buffer
@@ -118,8 +125,9 @@ func run(c *cli.Command) {
 		duration := time.Since(startTime)
 
 		if ctx.Err() == context.DeadlineExceeded {
-			color.RGB(0xf9, 0xe2, 0xaf).
-				Printf("%s Test case %s timed out! (%s)\n", EmojiTimeout, in, duration)
+			renderer.RenderYellow(
+				fmt.Sprintf("%s Test case %s timed out! (%s)", EmojiTimeout, in, duration),
+			)
 			continue
 		}
 
@@ -136,11 +144,12 @@ func run(c *cli.Command) {
 		// Compare the actual output with the expected output
 		actualOutput := outBuffer.Bytes()
 		if bytes.Equal(bytes.TrimSpace(actualOutput), bytes.TrimSpace(expectedOutput)) {
-			color.RGB(0xa6, 0xe3, 0xa1).
-				Printf("%s Test case %s passed! (%s)\n", EmojiPassed, in, duration)
+			renderer.RenderGreen(
+				fmt.Sprintf("%s Test case %s passed! (%s)", EmojiPassed, in, duration),
+			)
 			passed = passed && true
 		} else {
-			color.RGB(0xf3, 0x8b, 0xa8).Printf("%s Test case %s failed! (%s)", EmojiFailed, in, duration)
+			renderer.RenderRed(fmt.Sprintf("%s Test case %s failed! (%s)", EmojiFailed, in, duration))
 
 			diff := difflib.UnifiedDiff{
 				A:        difflib.SplitLines(string(expectedOutput)),
@@ -150,37 +159,35 @@ func run(c *cli.Command) {
 				Context:  3,
 			}
 			diffStr, _ := difflib.GetUnifiedDiffString(diff)
-			fmt.Println(colorizeDiff(diffStr))
+			colorizeDiff(diffStr)
 			passed = false
 			failed = append(failed, in)
 		}
 
 	}
 	if passed {
-		color.RGB(0xa6, 0xe3, 0xa1).Println("All test cases passed! 🎉")
+		renderer.RenderGreen("All test cases passed! 🎉")
 	} else {
 		for _, f := range failed {
-			color.RGB(0xf3, 0x8b, 0xa8).Printf(" - %s\n", f)
+			renderer.RenderRed(fmt.Sprintf(" - %s", f))
 		}
-		color.RGB(0xf3, 0x8b, 0xa8).Printf("%d test cases failed.\n", len(failed))
+		renderer.RenderRed(fmt.Sprintf("%d test cases failed.", len(failed)))
 	}
 }
 
-func colorizeDiff(diff string) string {
-	var coloredDiff strings.Builder
+func colorizeDiff(diff string) {
 	for _, line := range strings.Split(diff, "\n") {
 		switch {
 		case strings.HasPrefix(line, "+"):
-			coloredDiff.WriteString(color.RGB(0xa6, 0xe3, 0xa1).Sprint(line) + "\n")
+			renderer.RenderGreen(line)
 		case strings.HasPrefix(line, "-"):
-			coloredDiff.WriteString(color.RGB(0xf3, 0x8b, 0xa8).Sprint(line) + "\n")
+			renderer.RenderRed(line)
 		case strings.HasPrefix(line, "@@"):
-			coloredDiff.WriteString(color.RGB(0xf9, 0xe2, 0xaf).Sprint(line) + "\n")
+			renderer.RenderYellow(line)
 		default:
-			coloredDiff.WriteString(line + "\n")
+			renderer.Render(line)
 		}
 	}
-	return coloredDiff.String()
 }
 
 func createFiles(c *cli.Command) error {
@@ -211,29 +218,34 @@ func createFiles(c *cli.Command) error {
 		// Handle .in file
 		if _, err := os.Stat(inFilename); os.IsNotExist(err) {
 			if err := os.WriteFile(inFilename, []byte{}, 0o644); err != nil {
-				color.New(color.FgRed).Printf("❌ Failed to create %s: %v\n", inFilename, err)
+				renderer.RenderRed(fmt.Sprintf("❌ Failed to create %s: %v", inFilename, err))
 			} else {
-				color.New(color.FgGreen).Printf("✅ Created %s\n", inFilename)
+				renderer.RenderGreen(fmt.Sprintf("✅ Created %s", inFilename))
 			}
 		} else {
-			color.New(color.FgYellow).Printf("⚠️ File %s already exists.\n", inFilename)
+			renderer.RenderYellow(fmt.Sprintf("⚠️ File %s already exists.", inFilename))
 		}
 
 		// Handle .out file
 		if _, err := os.Stat(outFilename); os.IsNotExist(err) {
 			if err := os.WriteFile(outFilename, []byte{}, 0o644); err != nil {
-				color.New(color.FgRed).Printf("❌ Failed to create %s: %v\n", outFilename, err)
+				renderer.RenderRed(fmt.Sprintf("❌ Failed to create %s: %v", outFilename, err))
 			} else {
-				color.New(color.FgGreen).Printf("✅ Created %s\n", outFilename)
+				renderer.RenderGreen(fmt.Sprintf("✅ Created %s", outFilename))
 			}
 		} else {
-			color.New(color.FgYellow).Printf("⚠️ File %s already exists.\n", outFilename)
+			renderer.RenderYellow(fmt.Sprintf("⚠️ File %s already exists.", outFilename))
 		}
 	}
 	return nil
 }
 
 func main() {
+	cfg, err := config.LoadConfig("config.yaml")
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	cmd := &cli.Command{
 		Name:  "quick",
 		Usage: "A tool to simplify testing competitive programming problems.",
@@ -254,7 +266,7 @@ func main() {
 						log.Println("Error: Python script path is required.")
 						return fmt.Errorf("python script path is required")
 					}
-				run(c)
+					run(c, cfg)
 					return nil
 				},
 			},
@@ -266,8 +278,52 @@ func main() {
 					return createFiles(c)
 				},
 			},
+			{
+				Name:  "config",
+				Usage: "Manage configuration.",
+				Commands: []*cli.Command{
+					{
+						Name:  "get",
+						Usage: "Get a configuration value.",
+						Action: func(ctx context.Context, c *cli.Command) error {
+							key := c.Args().Get(0)
+							switch key {
+							case "shell":
+								renderer.Render(cfg.Shell)
+							case "run_command":
+								renderer.Render(cfg.RunCommand)
+							default:
+								renderer.Render("Unknown configuration key.")
+							}
+							return nil
+						},
+					},
+					{
+						Name:  "set",
+						Usage: "Set a configuration value.",
+						Action: func(ctx context.Context, c *cli.Command) error {
+							key := c.Args().Get(0)
+							value := c.Args().Get(1)
+							switch key {
+							case "shell":
+								cfg.Shell = value
+							case "run_command":
+								cfg.RunCommand = value
+							default:
+								renderer.Render("Unknown configuration key.")
+							}
+							err := config.SaveConfig("config.yaml", cfg)
+							if err != nil {
+								log.Fatal(err)
+							}
+							return nil
+						},
+					},
+				},
+			},
 		},
 	}
+
 	if err := cmd.Run(context.Background(), os.Args); err != nil {
 		log.Fatal(err)
 	}

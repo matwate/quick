@@ -6,6 +6,7 @@ require (
 	github.com/fatih/color v1.18.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/urfave/cli/v3 v3.4.1
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
