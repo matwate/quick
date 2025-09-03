@@ -58,3 +58,15 @@ To create 2 test file pairs for a problem named `solution`:
 quick create 2 solution
 ```
 This will create `1solution.in`, `1solution.out`, `2solution.in`, `2solution.out`. These files will be automatically picked up when you run `quick run --strict solution.py`.
+
+## Potential Upgrades
+
+This tool provides a solid foundation, but there are many ways it could be extended. Here are a few ideas for future development:
+
+*   **Support for More Languages:** The tool is currently hardcoded for Python 3. A great upgrade would be to add a `-lang` flag to specify other languages (e.g., C++, Java, Node.js) and their corresponding execution commands.
+
+*   **Interactive Test Case Creation:** The `create` command could be enhanced with an interactive mode. For example, `quick create -i` could prompt the user to paste the input and expected output directly in the terminal, saving it to the files.
+
+*   **Configurable Limits:** The 5-second timeout is currently fixed. This could be made configurable with a `--timeout` flag. Support for memory limit constraints could also be added.
+
+*   **Parallel Test Execution:** To speed up the verification process, the test cases could be run in parallel instead of sequentially.
