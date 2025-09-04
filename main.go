@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pmezard/go-difflib/difflib"
 	"github.com/urfave/cli/v3"
 
 	"github.com/matwate/quick/config"
@@ -23,7 +22,15 @@ const (
 	EmojiPassed  = "✅"
 	EmojiFailed  = "❌"
 	EmojiTimeout = "⌛"
+	EmojiCrashed = "💥"
 )
+
+type TestResult struct {
+	ID       int
+	TestCase string
+	Status   string
+	Duration string
+}
 
 func run(c *cli.Command, cfg *config.Config) {
 	pyFilename := c.Args().Get(0)
@@ -93,13 +100,11 @@ func run(c *cli.Command, cfg *config.Config) {
 		return
 	}
 
-	passed := true
-	failed := []string{}
-	for in, out := range Ins_Outs {
-		renderer.Render(
-			fmt.Sprintf("Running test case: %s -> %s\n ", in, out),
-		) // Note: Added a space after \n to match original formatting
+	results := make([]TestResult, 0)
+	passedCount := 0
+	id := 1
 
+	for in, out := range Ins_Outs {
 		// Read input from the *.in file
 		inputData, err := os.ReadFile(in)
 		if err != nil {
@@ -125,14 +130,27 @@ func run(c *cli.Command, cfg *config.Config) {
 		duration := time.Since(startTime)
 
 		if ctx.Err() == context.DeadlineExceeded {
-			renderer.RenderYellow(
-				fmt.Sprintf("%s Test case %s timed out! (%s)", EmojiTimeout, in, duration),
-			)
+			results = append(results, TestResult{
+				ID:       id,
+				TestCase: in,
+				Status:   EmojiTimeout + " Timeout",
+				Duration: duration.String(),
+			})
+			id++
 			continue
 		}
 
 		if err != nil {
-			log.Fatalf("Failed to execute command: %v Stderr: %s", err, errBuffer.String())
+			results = append(results, TestResult{
+				ID:       id,
+				TestCase: in,
+				Status:   EmojiCrashed + " Crashed",
+				Duration: duration.String(),
+			})
+			renderer.RenderRed("Stderr:")
+			renderer.Render(errBuffer.String())
+			id++
+			continue
 		}
 
 		// Read expected output from the *.out file
@@ -144,49 +162,44 @@ func run(c *cli.Command, cfg *config.Config) {
 		// Compare the actual output with the expected output
 		actualOutput := outBuffer.Bytes()
 		if bytes.Equal(bytes.TrimSpace(actualOutput), bytes.TrimSpace(expectedOutput)) {
-			renderer.RenderGreen(
-				fmt.Sprintf("%s Test case %s passed! (%s)", EmojiPassed, in, duration),
-			)
-			passed = passed && true
+			results = append(results, TestResult{
+				ID:       id,
+				TestCase: in,
+				Status:   EmojiPassed + " Passed",
+				Duration: duration.String(),
+			})
+			passedCount++
 		} else {
-			renderer.RenderRed(fmt.Sprintf("%s Test case %s failed! (%s)", EmojiFailed, in, duration))
-
-			diff := difflib.UnifiedDiff{
-				A:        difflib.SplitLines(string(expectedOutput)),
-				B:        difflib.SplitLines(string(actualOutput)),
-				FromFile: "Expected",
-				ToFile:   "Got",
-				Context:  3,
-			}
-			diffStr, _ := difflib.GetUnifiedDiffString(diff)
-			colorizeDiff(diffStr)
-			passed = false
-			failed = append(failed, in)
+			results = append(results, TestResult{
+				ID:       id,
+				TestCase: in,
+				Status:   EmojiFailed + " Failed",
+				Duration: duration.String(),
+			})
+			renderer.RenderDiff(string(expectedOutput), string(actualOutput))
 		}
-
+		id++
 	}
-	if passed {
+
+	
+
+	header := []string{"ID", "Test Case", "Status", "Duration"}
+	rows := make([][]string, len(results))
+	for i, result := range results {
+		rows[i] = []string{
+			strconv.Itoa(result.ID),
+			result.TestCase,
+			result.Status,
+			result.Duration,
+		}
+	}
+
+	renderer.RenderTable(header, rows)
+
+	if passedCount == len(Ins_Outs) {
 		renderer.RenderGreen("All test cases passed! 🎉")
 	} else {
-		for _, f := range failed {
-			renderer.RenderRed(fmt.Sprintf(" - %s", f))
-		}
-		renderer.RenderRed(fmt.Sprintf("%d test cases failed.", len(failed)))
-	}
-}
-
-func colorizeDiff(diff string) {
-	for _, line := range strings.Split(diff, "\n") {
-		switch {
-		case strings.HasPrefix(line, "+"):
-			renderer.RenderGreen(line)
-		case strings.HasPrefix(line, "-"):
-			renderer.RenderRed(line)
-		case strings.HasPrefix(line, "@@"):
-			renderer.RenderYellow(line)
-		default:
-			renderer.Render(line)
-		}
+		renderer.RenderRed(fmt.Sprintf("%d/%d test cases failed.", len(Ins_Outs)-passedCount, len(Ins_Outs)))
 	}
 }
 

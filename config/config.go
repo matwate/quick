@@ -14,6 +14,9 @@ type Config struct {
 func LoadConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return createDefaultConfig(path)
+		}
 		return nil, err
 	}
 
@@ -24,6 +27,20 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	return &config, nil
+}
+
+func createDefaultConfig(path string) (*Config, error) {
+	config := &Config{
+		Shell:      "bash",
+		RunCommand: "python3",
+	}
+
+	err := SaveConfig(path, config)
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
 }
 
 func SaveConfig(path string, config *Config) error {
