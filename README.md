@@ -1,10 +1,29 @@
-# Quick
+<div align="center">
 
-A command-line tool to simplify the verification of LeetCode-style coding problems by automating the input/output process.
+```
+██████╗ ██╗   ██╗██╗ ██████╗██╗  ██╗
+██╔══██╗██║   ██║██║██╔════╝██║ ██╔╝
+██████╔╝██║   ██║██║██║     █████╔╝
+██╔══██╗██║   ██║██║██║     ██╔═██╗
+██████╔╝╚██████╔╝██║╚██████╗██║  ██╗
+╚═════╝  ╚═════╝ ╚═╝ ╚═════╝╚═╝  ╚═╝
+```
 
-## Installation
+**A command-line tool to simplify the testing of competitive programming problems.**
 
-To make the `quick` command available system-wide, you can use `go install`:
+[![Go Version](https://img.shields.io/badge/Go-1.18+-blue.svg)](https://golang.org/dl/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+
+</div>
+
+---
+
+`quick` is a command-line tool designed to streamline the process of testing solutions for competitive programming problems. It automates running your code against multiple input/output files, saving you time and effort.
+
+## 🚀 Installation
+
+To get started, make sure you have Go installed on your system. Then, you can install `quick` with a single command:
 
 ```bash
 go install
@@ -12,19 +31,19 @@ go install
 
 This will build the binary and place it in your `$GOPATH/bin` directory. If this directory is in your system's `PATH`, you'll be able to run `quick` from anywhere.
 
-## Usage
+## 💡 Usage
 
-This tool is split into two main commands: `run` and `create`.
+`quick` is built around two main commands: `run` and `create`.
 
-### Running Tests (`run`)
+### ✅ Running Tests (`run`)
 
-To run your Python solution against a set of test cases, use the `run` command.
+Use the `run` command to execute your solution against a set of test cases.
 
 ```bash
 quick run <your_solution.py>
 ```
 
-By default, the tool will scan the directory for all `*.in` files and their corresponding `*.out` files, and run your script against each pair.
+By default, `quick` scans the current directory for all `*.in` files and their corresponding `*.out` files, and runs your script against each pair.
 
 #### Strict Mode
 
@@ -36,7 +55,7 @@ quick run --strict <your_solution.py>
 
 In strict mode, the tool will only run on test files that are associated with your solution's name. For a script named `solution.py`, it will look for test files like `1solution.in`, `1solution.out`, `2solution.in`, `2solution.out`, etc.
 
-### Creating Test Files (`create`)
+### ✨ Creating Test Files (`create`)
 
 To quickly generate empty `.in` and `.out` file pairs, use the `create` command.
 
@@ -59,9 +78,9 @@ quick create 2 solution
 ```
 This will create `1solution.in`, `1solution.out`, `2solution.in`, `2solution.out`. These files will be automatically picked up when you run `quick run --strict solution.py`.
 
-## Configuration
+## ⚙️ Configuration
 
-You can configure the shell and the run command used by `quick` to execute your scripts.
+You can customize the shell and the run command used by `quick` to execute your scripts.
 
 ### Setting Configuration Values
 
@@ -92,14 +111,19 @@ You can also use `powershell.exe` as your shell:
 quick config set shell powershell.exe
 ```
 
-## Potential Upgrades
+## 🗺️ Roadmap
 
-This tool provides a solid foundation, but there are many ways it could be extended. Here are a few ideas for future development:
+`quick` is actively being developed, and here are some of the features we're planning to add:
 
-*   **Support for More Languages:** The tool is currently hardcoded for Python 3. A great upgrade would be to add a `-lang` flag to specify other languages (e.g., C++, Java, Node.js) and their corresponding execution commands.
+-   **🌐 Support for More Languages:** Add a `-lang` flag to specify other languages (e.g., C++, Java, Node.js) and their corresponding execution commands.
+-   **✍️ Interactive Test Case Creation:** An interactive mode for the `create` command (`quick create -i`) that prompts the user to paste the input and expected output directly in the terminal.
+-   **⏱️ Configurable Limits:** Allow users to configure the timeout and memory limits for test case execution.
+-   **⚡ Parallel Test Execution:** Run test cases in parallel to speed up the verification process.
 
-*   **Interactive Test Case Creation:** The `create` command could be enhanced with an interactive mode. For example, `quick create -i` could prompt the user to paste the input and expected output directly in the terminal, saving it to the files.
+## 🙌 Contributing
 
-*   **Configurable Limits:** The 5-second timeout is currently fixed. This could be made configurable with a `--timeout` flag. Support for memory limit constraints could also be added.
+We welcome contributions from the community! If you have an idea for a new feature or want to help improve `quick`, please check out our [Contributing Guide](CONTRIBUTING.md) (you'll need to create this file).
 
-*   **Parallel Test Execution:** To speed up the verification process, the test cases could be run in parallel instead of sequentially.
+## 📄 License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details (you'll need to create this file).
